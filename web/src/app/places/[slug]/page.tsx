@@ -16,6 +16,8 @@ import {
 import nextDynamic from "next/dynamic";
 import { getPlaceBySlug, getNearbyPlaces, getGoogleMapsNavigationUrl } from "@/lib/api";
 import PlaceCard from "@/components/PlaceCard";
+import FavoriteButton from "@/components/FavoriteButton";
+import ReviewSection from "@/components/ReviewSection";
 
 const MapboxMap = nextDynamic(() => import("@/components/MapboxMap"), {
   ssr: false,

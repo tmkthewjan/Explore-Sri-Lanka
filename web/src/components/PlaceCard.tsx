@@ -4,6 +4,7 @@ import { MapPin, Navigation, ArrowUpRight, Compass } from "lucide-react";
 import { Place } from "@/types/place";
 import { formatDistance } from "@/lib/utils";
 import { getGoogleMapsNavigationUrl } from "@/lib/api";
+import FavoriteButton from "@/components/FavoriteButton";
 
 interface PlaceCardProps {
   place: Place;
@@ -39,6 +40,15 @@ export default function PlaceCard({ place, userLat, userLng }: PlaceCardProps) {
           <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-600/90 text-white backdrop-blur-md">
             {place.activity}
           </span>
+        </div>
+
+        {/* Favorite Heart Button */}
+        <div className="absolute top-3 right-3 z-20">
+          <FavoriteButton
+            placeId={place.id}
+            placeTitle={place.title}
+            variant="card"
+          />
         </div>
 
         {/* Distance Badge (if distance calculated) */}

@@ -56,7 +56,16 @@ app.get('/api/health', async (req, res, next) => {
 
 // Mount API Routes
 const placeRoutes = require('./routes/placeRoutes');
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const favoriteRoutes = require('./routes/favoriteRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+
 app.use('/api/places', placeRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/favorites', favoriteRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Root welcome route
 app.get('/', (req, res) => {
