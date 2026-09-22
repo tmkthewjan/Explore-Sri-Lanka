@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
 import { Place } from "@/types/place";
 import { formatDistance } from "@/lib/utils";
 import { getGoogleMapsNavigationUrl } from "@/lib/api";
@@ -15,246 +13,268 @@ interface MapboxMapProps {
   radiusKm?: number;
 }
 
-// Sri Lanka geographic center
-const SRI_LANKA_CENTER: [number, number] = [80.7718, 7.8731]; // [lng, lat]
+// Sri Lanka geographic center [lat, lng]
+const SRI_LANKA_CENTER: [number, number] = [7.8731, 80.7718];
+const LEAFLET_VERSION = "1.9.4";
 
-// Bulletproof OpenStreetMap Tile Style (Zero API token needed, 100% reliable)
-const OPENSTREETMAP_STYLE: any = {
-  version: 8,
-  sources: {
-    "osm-tiles": {
-      type: "raster",
-      tiles: [
-        "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      ],
-      tileSize: 256,
-      attribution: "&copy; OpenStreetMap Contributors",
-    },
-  },
-  layers: [
-    {
-      id: "osm-tiles-layer",
-      type: "raster",
-      source: "osm-tiles",
-      minzoom: 0,
-      maxzoom: 19,
-    },
-  ],
-};
+function loadScript(src: string, id: string): Promise<void> {
+  return new Promise((resolve) => {
+    if (document.getElementById(id)) { resolve(); return; }
+    const s = document.createElement("script");
+    s.id = id;
+    s.src = src;
+    s.onload = () => resolve();
+    document.head.appendChild(s);
+  });
+}
+
+function loadCSS(href: string, id: string) {
+  if (document.getElementById(id)) return;
+  const link = document.createElement("link");
+  link.id = id;
+  link.rel = "stylesheet";
+  link.href = href;
+  document.head.appendChild(link);
+}
 
 export default function MapboxMap({
   places,
   userCoords,
   selectedPlace,
   onSelectPlace,
-  radiusKm,
 }: MapboxMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const markersRef = useRef<{ [id: string]: mapboxgl.Marker }>({});
+  const mapRef = useRef<any>(null);
+  const userMarkerRef = useRef<any>(null);
+  const markersRef = useRef<{ [id: string]: any }>({});
+  const [mapReady, setMapReady] = useState(false);
 
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [initError, setInitError] = useState<string | null>(null);
-
-  // Initialize Map
+  // Bootstrap Leaflet from CDN and initialize map
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
+    if (mapRef.current || !mapContainerRef.current) return;
 
-    try {
-      const token = (process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "").trim();
-      const hasRealToken = Boolean(
-        token && 
-        token.startsWith("pk.ey") && 
-        !token.includes("demo") && 
-        token.length > 50
-      );
+    const base = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist`;
+    loadCSS(`${base}/leaflet.css`, "leaflet-css");
 
-      if (hasRealToken) {
-        mapboxgl.accessToken = token;
-      }
+    loadScript(`${base}/leaflet.js`, "leaflet-js").then(() => {
+      const L = (window as any).L;
+      if (!L || !mapContainerRef.current) return;
 
-      const map = new mapboxgl.Map({
-        container: mapContainerRef.current,
-        style: hasRealToken ? "mapbox://styles/mapbox/outdoors-v12" : OPENSTREETMAP_STYLE,
-        center: userCoords ? [userCoords.lng, userCoords.lat] : SRI_LANKA_CENTER,
-        zoom: userCoords ? 9 : 7.5,
-        attributionControl: true,
+      const center: [number, number] = userCoords
+        ? [userCoords.lat, userCoords.lng]
+        : SRI_LANKA_CENTER;
+
+      const map = L.map(mapContainerRef.current, {
+        center,
+        zoom: userCoords ? 10 : 8,
+        zoomControl: false,
       });
 
-      map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "top-right");
-      map.addControl(new mapboxgl.FullscreenControl(), "top-right");
-
-      map.on("load", () => {
-        setMapLoaded(true);
-        map.resize();
-      });
-
-      map.on("error", (e) => {
-        // If Mapbox token fails, gracefully switch to OSM style
-        if (e && e.error && e.error.message && e.error.message.includes("401")) {
-          console.warn("Mapbox token unauthorized, falling back to OpenStreetMap tiles.");
-          map.setStyle(OPENSTREETMAP_STYLE);
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+        {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+          subdomains: "abcd",
+          maxZoom: 19,
         }
-      });
+      ).addTo(map);
+
+      L.control.zoom({ position: "topright" }).addTo(map);
 
       mapRef.current = map;
-    } catch (err: any) {
-      console.error("Failed to initialize Mapbox:", err);
-      setInitError(err.message || "Failed to load map");
-    }
+      setMapReady(true);
+    });
 
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+        userMarkerRef.current = null;
+        markersRef.current = {};
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update user pulsing marker
+  // User location marker
   useEffect(() => {
-    if (!mapRef.current || !userCoords || !mapLoaded) return;
+    if (!mapReady || !mapRef.current || !userCoords) return;
+    const L = (window as any).L;
+    if (!L) return;
 
-    try {
-      if (!userMarkerRef.current) {
-        const el = document.createElement("div");
-        el.className = "user-location-pulse";
-        el.title = "Your Current Location";
+    const pulseIcon = L.divIcon({
+      className: "",
+      html: `<div class="lf-user-dot"></div>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    });
 
-        const marker = new mapboxgl.Marker({ element: el })
-          .setLngLat([userCoords.lng, userCoords.lat])
-          .addTo(mapRef.current);
-
-        userMarkerRef.current = marker;
-      } else {
-        userMarkerRef.current.setLngLat([userCoords.lng, userCoords.lat]);
-      }
-    } catch (err) {
-      console.warn("Error updating user marker:", err);
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLatLng([userCoords.lat, userCoords.lng]);
+    } else {
+      userMarkerRef.current = L.marker([userCoords.lat, userCoords.lng], {
+        icon: pulseIcon,
+        title: "Your Location",
+        zIndexOffset: 9999,
+      }).addTo(mapRef.current);
     }
-  }, [userCoords, mapLoaded]);
+  }, [userCoords, mapReady]);
 
-  // Update destination markers
+  // Destination markers
   useEffect(() => {
-    if (!mapRef.current || !mapLoaded) return;
+    if (!mapReady || !mapRef.current) return;
+    const L = (window as any).L;
+    if (!L) return;
 
-    // Remove existing markers
-    Object.values(markersRef.current).forEach((m) => m.remove());
+    Object.values(markersRef.current).forEach((m: any) => m.remove());
     markersRef.current = {};
 
     places.forEach((place) => {
-      try {
-        const el = document.createElement("div");
-        el.className = "cursor-pointer group hover:scale-110 active:scale-95 transition-transform";
-        el.innerHTML = `
-          <div style="background:#059669;color:white;width:32px;height:32px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 4px 6px -1px rgba(0,0,0,0.2);">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-              <circle cx="12" cy="10" r="3"/>
-            </svg>
+      const pinIcon = L.divIcon({
+        className: "",
+        html: `<div class="lf-pin">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+        popupAnchor: [0, -20],
+      });
+
+      const navUrl = getGoogleMapsNavigationUrl(
+        place.latitude,
+        place.longitude,
+        userCoords?.lat,
+        userCoords?.lng
+      );
+
+      const distanceBadge =
+        place.distance_km !== undefined
+          ? `<div class="lf-dist-badge">📍 ${formatDistance(place.distance_km)}</div>`
+          : "";
+
+      const popupContent = `
+        <div class="lf-popup-inner">
+          <div class="lf-popup-img">
+            <img src="${place.cover_image}" alt="${place.title}" />
+            <span class="lf-popup-cat">${place.category}</span>
           </div>
-        `;
-
-        const navUrl = getGoogleMapsNavigationUrl(
-          place.latitude,
-          place.longitude,
-          userCoords?.lat,
-          userCoords?.lng
-        );
-
-        const distanceBadge =
-          place.distance_km !== undefined
-            ? `<div style="background:#10b981;color:white;font-size:11px;font-weight:700;padding:2px 8px;border-radius:9999px;display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">
-                 📍 ${formatDistance(place.distance_km)}
-               </div>`
-            : "";
-
-        const popupHtml = `
-          <div style="width:230px;font-family:inherit;overflow:hidden;border-radius:12px;">
-            <div style="height:115px;position:relative;overflow:hidden;">
-              <img src="${place.cover_image}" alt="${place.title}" style="width:100%;height:100%;object-fit:cover;"/>
-              <span style="position:absolute;top:6px;left:6px;background:rgba(255,255,255,0.92);padding:2px 8px;border-radius:9999px;font-size:10px;font-weight:700;color:#0f172a;">
-                ${place.category}
-              </span>
-            </div>
-            <div style="padding:12px;background:white;">
-              ${distanceBadge}
-              <h4 style="font-weight:700;font-size:13px;color:#0f172a;margin:0 0 4px 0;line-height:1.2;">
-                ${place.title}
-              </h4>
-              <p style="font-size:11px;color:#64748b;margin:0 0 10px 0;">
-                ${place.district}, ${place.province}
-              </p>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                <a href="/places/${place.slug}" style="display:flex;align-items:center;justify-content:center;gap:4px;background:#f1f5f9;color:#334155;text-decoration:none;font-size:11px;font-weight:600;padding:6px 8px;border-radius:8px;">
-                  Details &rarr;
-                </a>
-                <a href="${navUrl}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:4px;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;text-decoration:none;font-size:11px;font-weight:600;padding:6px 8px;border-radius:8px;">
-                  Navigate
-                </a>
-              </div>
+          <div class="lf-popup-body">
+            ${distanceBadge}
+            <h4>${place.title}</h4>
+            <p>${place.district}, ${place.province}</p>
+            <div class="lf-popup-actions">
+              <a href="/places/${place.slug}" class="lf-btn-detail">Details →</a>
+              <a href="${navUrl}" target="_blank" rel="noopener noreferrer" class="lf-btn-nav">Navigate</a>
             </div>
           </div>
-        `;
+        </div>`;
 
-        const popup = new mapboxgl.Popup({ offset: 25, maxWidth: "250px" }).setHTML(popupHtml);
+      const marker = L.marker([place.latitude, place.longitude], { icon: pinIcon })
+        .addTo(mapRef.current)
+        .bindPopup(popupContent, { maxWidth: 240, className: "lf-popup" });
 
-        el.addEventListener("click", () => {
-          if (onSelectPlace) onSelectPlace(place);
-        });
+      marker.on("click", () => {
+        if (onSelectPlace) onSelectPlace(place);
+      });
 
-        const marker = new mapboxgl.Marker({ element: el })
-          .setLngLat([place.longitude, place.latitude])
-          .setPopup(popup)
-          .addTo(mapRef.current!);
-
-        markersRef.current[place.id] = marker;
-      } catch (e) {
-        console.warn("Marker creation failed:", e);
-      }
+      markersRef.current[place.id] = marker;
     });
-  }, [places, userCoords, mapLoaded]);
+  }, [places, userCoords, mapReady]);
 
   // Fly to selected place
   useEffect(() => {
-    if (!mapRef.current || !selectedPlace || !mapLoaded) return;
-
-    try {
-      mapRef.current.flyTo({
-        center: [selectedPlace.longitude, selectedPlace.latitude],
-        zoom: 13,
-        speed: 1.2,
-        curve: 1.4,
-        essential: true,
-      });
-
-      const marker = markersRef.current[selectedPlace.id];
-      if (marker) {
-        marker.togglePopup();
-      }
-    } catch (e) {
-      console.warn("FlyTo error:", e);
-    }
-  }, [selectedPlace, mapLoaded]);
-
-  if (initError) {
-    return (
-      <div className="w-full h-full min-h-[500px] rounded-3xl bg-slate-100 flex flex-col items-center justify-center p-6 text-center">
-        <p className="text-sm font-bold text-slate-700">Map Display Notice</p>
-        <p className="text-xs text-slate-500 mt-1">{initError}</p>
-      </div>
-    );
-  }
+    if (!mapReady || !mapRef.current || !selectedPlace) return;
+    mapRef.current.flyTo([selectedPlace.latitude, selectedPlace.longitude], 13, {
+      animate: true,
+      duration: 1.2,
+    });
+    setTimeout(() => {
+      const m = markersRef.current[selectedPlace.id];
+      if (m) m.openPopup();
+    }, 1350);
+  }, [selectedPlace, mapReady]);
 
   return (
     <div className="relative w-full h-full min-h-[500px] rounded-3xl overflow-hidden shadow-lg border border-slate-200">
+      <style>{`
+        /* User location pulse dot */
+        .lf-user-dot {
+          width:18px; height:18px; border-radius:50%;
+          background:#2563eb; border:3px solid white;
+          box-shadow:0 0 0 4px rgba(37,99,235,0.25);
+          animation:lf-pulse 1.8s ease-out infinite;
+        }
+        @keyframes lf-pulse {
+          0%   { box-shadow:0 0 0 0 rgba(37,99,235,0.5); }
+          70%  { box-shadow:0 0 0 14px rgba(37,99,235,0); }
+          100% { box-shadow:0 0 0 0 rgba(37,99,235,0); }
+        }
+        /* Destination pin */
+        .lf-pin {
+          width:34px; height:34px; border-radius:50%;
+          background:#059669; color:white;
+          display:flex; align-items:center; justify-content:center;
+          border:2.5px solid white;
+          box-shadow:0 4px 12px rgba(0,0,0,0.25);
+          cursor:pointer; transition:transform 0.15s;
+        }
+        .lf-pin:hover { transform:scale(1.18); }
+        /* Popup */
+        .lf-popup .leaflet-popup-content-wrapper {
+          padding:0; border-radius:14px; overflow:hidden;
+          box-shadow:0 8px 30px rgba(0,0,0,0.18);
+        }
+        .lf-popup .leaflet-popup-content { margin:0; }
+        .lf-popup .leaflet-popup-tip { display:none; }
+        .lf-popup .leaflet-popup-close-button {
+          color:#fff !important; top:6px !important; right:8px !important;
+          font-size:18px !important; z-index:10;
+        }
+        .lf-popup-inner { width:224px; font-family:system-ui,sans-serif; }
+        .lf-popup-img { height:110px; position:relative; overflow:hidden; }
+        .lf-popup-img img { width:100%; height:100%; object-fit:cover; display:block; }
+        .lf-popup-cat {
+          position:absolute; top:6px; left:6px;
+          background:rgba(255,255,255,0.92); padding:2px 8px;
+          border-radius:999px; font-size:10px; font-weight:700; color:#0f172a;
+        }
+        .lf-popup-body { padding:10px 12px 12px; background:#fff; }
+        .lf-dist-badge {
+          background:#10b981; color:#fff; font-size:11px; font-weight:700;
+          padding:2px 10px; border-radius:999px; display:inline-block; margin-bottom:6px;
+        }
+        .lf-popup-body h4 {
+          font-weight:700; font-size:13px; color:#0f172a;
+          margin:0 0 3px; line-height:1.3;
+        }
+        .lf-popup-body p {
+          font-size:11px; color:#64748b; margin:0 0 10px;
+        }
+        .lf-popup-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .lf-btn-detail {
+          display:flex; align-items:center; justify-content:center;
+          background:#f1f5f9; color:#334155; text-decoration:none;
+          font-size:11px; font-weight:600; padding:6px 8px; border-radius:8px;
+        }
+        .lf-btn-nav {
+          display:flex; align-items:center; justify-content:center;
+          background:#ecfdf5; color:#059669; border:1px solid #a7f3d0;
+          text-decoration:none; font-size:11px; font-weight:600;
+          padding:6px 8px; border-radius:8px;
+        }
+        .lf-btn-detail:hover { background:#e2e8f0; }
+        .lf-btn-nav:hover { background:#d1fae5; }
+      `}</style>
+
       <div ref={mapContainerRef} className="w-full h-full min-h-[500px]" />
 
       {/* Legend */}
-      <div className="absolute bottom-4 left-4 z-10 glass-card px-3.5 py-2.5 rounded-2xl text-xs text-slate-700 shadow-md flex items-center gap-4">
+      <div className="absolute bottom-4 left-4 z-[1000] glass-card px-3.5 py-2.5 rounded-2xl text-xs text-slate-700 shadow-md flex items-center gap-4">
         <div className="flex items-center gap-1.5 font-medium">
           <span className="w-3 h-3 rounded-full bg-blue-600 border-2 border-white shadow-sm inline-block" />
           <span>Your Location</span>

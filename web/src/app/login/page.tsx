@@ -120,11 +120,44 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Demo Credentials Box */}
-        <div className="rounded-2xl bg-emerald-50/60 border border-emerald-200/60 p-3.5 text-xs text-emerald-800">
-          <p className="font-semibold text-emerald-900 mb-1">💡 Quick Demo Access:</p>
-          <p>Email: <code className="font-mono bg-emerald-100/80 px-1 py-0.5 rounded text-emerald-950">demo@exploresrilanka.com</code></p>
-          <p className="mt-0.5">Password: <code className="font-mono bg-emerald-100/80 px-1 py-0.5 rounded text-emerald-950">Password123!</code></p>
+        {/* Demo & Admin Credentials Box */}
+        <div className="rounded-2xl bg-emerald-50/70 border border-emerald-200/80 p-4 text-xs text-emerald-900 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-emerald-950 flex items-center gap-1.5">
+              💡 Quick One-Click Credentials
+            </span>
+            <span className="text-[10px] text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full font-medium">Click to fill</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {/* Demo User Fill */}
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("demo@exploresrilanka.com");
+                setPassword("Password123!");
+                setError(null);
+              }}
+              className="p-2.5 rounded-xl bg-white/90 border border-emerald-200 hover:border-emerald-400 hover:bg-white text-left transition-all shadow-sm hover:shadow group"
+            >
+              <p className="font-bold text-slate-800 group-hover:text-emerald-700">🧑 Traveler Demo</p>
+              <p className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">demo@exploresrilanka.com</p>
+            </button>
+
+            {/* Admin User Fill */}
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("admin@exploresrilanka.com");
+                setPassword("Admin123!");
+                setError(null);
+              }}
+              className="p-2.5 rounded-xl bg-white/90 border border-emerald-200 hover:border-emerald-400 hover:bg-white text-left transition-all shadow-sm hover:shadow group"
+            >
+              <p className="font-bold text-slate-800 group-hover:text-emerald-700">⚡ System Admin</p>
+              <p className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">admin@exploresrilanka.com</p>
+            </button>
+          </div>
         </div>
 
         {/* Footer */}

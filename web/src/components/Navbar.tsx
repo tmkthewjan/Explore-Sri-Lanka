@@ -115,6 +115,16 @@ export default function Navbar() {
                     </div>
 
                     <div className="py-1">
+                      {user.role === "admin" && (
+                        <Link
+                          href="/admin/dashboard"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-purple-700 bg-purple-50/80 hover:bg-purple-100 transition-colors border-y border-purple-100/60"
+                        >
+                          <Sparkles className="w-4 h-4 text-purple-600" />
+                          Admin Dashboard
+                        </Link>
+                      )}
                       <Link
                         href="/profile"
                         onClick={() => setUserDropdownOpen(false)}
@@ -217,6 +227,16 @@ export default function Navbar() {
                   <p className="text-xs font-bold text-slate-800">{user.full_name}</p>
                   <p className="text-[11px] text-slate-500">{user.email}</p>
                 </div>
+                {user.role === "admin" && (
+                  <Link
+                    href="/admin/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-bold text-purple-700 bg-purple-50 rounded-lg"
+                  >
+                    <Sparkles className="w-4 h-4 text-purple-600" />
+                    Admin Dashboard
+                  </Link>
+                )}
                 <Link
                   href="/favorites"
                   onClick={() => setMobileMenuOpen(false)}

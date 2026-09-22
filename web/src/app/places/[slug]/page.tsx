@@ -13,20 +13,11 @@ import {
   Footprints,
   HeartHandshake,
 } from "lucide-react";
-import nextDynamic from "next/dynamic";
 import { getPlaceBySlug, getNearbyPlaces, getGoogleMapsNavigationUrl } from "@/lib/api";
 import PlaceCard from "@/components/PlaceCard";
 import FavoriteButton from "@/components/FavoriteButton";
 import ReviewSection from "@/components/ReviewSection";
-
-const MapboxMap = nextDynamic(() => import("@/components/MapboxMap"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full min-h-[400px] flex items-center justify-center bg-slate-100 rounded-2xl text-slate-400 text-xs font-semibold">
-      Loading map...
-    </div>
-  ),
-});
+import MapboxMapClient from "@/components/MapboxMapClient";
 
 interface PlaceDetailsProps {
   params: Promise<{ slug: string }>;
@@ -174,7 +165,7 @@ export default async function PlaceDetailsPage({ params }: PlaceDetailsProps) {
               </div>
 
               <div className="h-[420px] w-full rounded-2xl overflow-hidden">
-                <MapboxMap places={[place]} selectedPlace={place} />
+                <MapboxMapClient places={[place]} selectedPlace={place} />
               </div>
             </div>
           </div>
@@ -252,7 +243,12 @@ export default async function PlaceDetailsPage({ params }: PlaceDetailsProps) {
             </div>
           </div>
         )}
+
+        {/* Customer Feedback & Reviews Section */}
+        <ReviewSection placeId={place.id} placeTitle={place.title} />
+
       </div>
     </div>
   );
 }
+

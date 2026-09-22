@@ -426,3 +426,290 @@ export async function deleteReviewApi(token: string, reviewId: string): Promise<
   if (!res.ok) throw new Error(json.message || "Failed to delete review");
 }
 
+/* =========================================================================
+   ADMIN DASHBOARD & MANAGEMENT APIs
+   ========================================================================= */
+
+import type {
+  DashboardData,
+  AdminUsersResponse,
+  UserDetailsData,
+  AdminPlacesResponse,
+  AdminReviewsResponse,
+  UserAnalyticsData,
+  PlaceAnalyticsData,
+  ReviewAnalyticsData,
+  FavoritesAnalyticsData,
+  SearchAnalyticsData,
+  LocationAnalyticsData,
+} from "@/types/admin";
+
+export async function getAdminDashboardStats(
+  token: string,
+  period = "30d"
+): Promise<DashboardData> {
+  const res = await fetch(`${API_BASE_URL}/admin/dashboard?period=${period}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch dashboard stats");
+  return json.data;
+}
+
+export async function getAdminUserAnalytics(
+  token: string,
+  period = "30d"
+): Promise<UserAnalyticsData> {
+  const res = await fetch(`${API_BASE_URL}/admin/analytics/users?period=${period}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch user analytics");
+  return json.data;
+}
+
+export async function getAdminPlaceAnalytics(token: string): Promise<PlaceAnalyticsData> {
+  const res = await fetch(`${API_BASE_URL}/admin/analytics/places`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch place analytics");
+  return json.data;
+}
+
+export async function getAdminReviewAnalytics(token: string): Promise<ReviewAnalyticsData> {
+  const res = await fetch(`${API_BASE_URL}/admin/analytics/reviews`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch review analytics");
+  return json.data;
+}
+
+export async function getAdminFavoritesAnalytics(
+  token: string
+): Promise<FavoritesAnalyticsData> {
+  const res = await fetch(`${API_BASE_URL}/admin/analytics/favorites`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch favorites analytics");
+  return json.data;
+}
+
+export async function getAdminSearchAnalytics(
+  token: string
+): Promise<SearchAnalyticsData> {
+  const res = await fetch(`${API_BASE_URL}/admin/analytics/searches`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch search analytics");
+  return json.data;
+}
+
+export async function getAdminLocationAnalytics(
+  token: string
+): Promise<LocationAnalyticsData> {
+  const res = await fetch(`${API_BASE_URL}/admin/analytics/locations`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch location analytics");
+  return json.data;
+}
+
+export async function getAdminUsers(
+  token: string,
+  params: { search?: string; role?: string; status?: string; page?: number; limit?: number; sort?: string } = {}
+): Promise<AdminUsersResponse> {
+  const queryParams = new URLSearchParams();
+  if (params.search) queryParams.set("search", params.search);
+  if (params.role) queryParams.set("role", params.role);
+  if (params.status) queryParams.set("status", params.status);
+  if (params.page) queryParams.set("page", String(params.page));
+  if (params.limit) queryParams.set("limit", String(params.limit));
+  if (params.sort) queryParams.set("sort", params.sort);
+
+  const res = await fetch(`${API_BASE_URL}/admin/users?${queryParams.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch users");
+  return json;
+}
+
+export async function getAdminUserDetails(
+  token: string,
+  id: string
+): Promise<UserDetailsData> {
+  const res = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch user details");
+  return json.data;
+}
+
+export async function updateAdminUserStatus(
+  token: string,
+  id: string,
+  isActive: boolean
+): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/admin/users/${id}/status`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ is_active: isActive }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to update user status");
+  return json;
+}
+
+export async function updateAdminUserRole(
+  token: string,
+  id: string,
+  role: "user" | "admin"
+): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/admin/users/${id}/role`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ role }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to update user role");
+  return json;
+}
+
+export async function deleteAdminUser(
+  token: string,
+  id: string
+): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to delete user");
+  return json;
+}
+
+export async function getAdminPlaces(
+  token: string,
+  params: { search?: string; category?: string; district?: string; province?: string; activity?: string; page?: number; limit?: number } = {}
+): Promise<AdminPlacesResponse> {
+  const queryParams = new URLSearchParams();
+  if (params.search) queryParams.set("search", params.search);
+  if (params.category) queryParams.set("category", params.category);
+  if (params.district) queryParams.set("district", params.district);
+  if (params.province) queryParams.set("province", params.province);
+  if (params.activity) queryParams.set("activity", params.activity);
+  if (params.page) queryParams.set("page", String(params.page));
+  if (params.limit) queryParams.set("limit", String(params.limit));
+
+  const res = await fetch(`${API_BASE_URL}/admin/places?${queryParams.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch places");
+  return json;
+}
+
+export async function createAdminPlace(
+  token: string,
+  placeData: any
+): Promise<{ success: boolean; data: any; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/admin/places`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(placeData),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to create place");
+  return json;
+}
+
+export async function updateAdminPlace(
+  token: string,
+  id: string,
+  placeData: any
+): Promise<{ success: boolean; data: any; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/admin/places/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(placeData),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to update place");
+  return json;
+}
+
+export async function deleteAdminPlace(
+  token: string,
+  id: string
+): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/admin/places/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to delete place");
+  return json;
+}
+
+export async function getAdminReviews(
+  token: string,
+  params: { search?: string; rating?: string; placeId?: string; page?: number; limit?: number } = {}
+): Promise<AdminReviewsResponse> {
+  const queryParams = new URLSearchParams();
+  if (params.search) queryParams.set("search", params.search);
+  if (params.rating) queryParams.set("rating", params.rating);
+  if (params.placeId) queryParams.set("placeId", params.placeId);
+  if (params.page) queryParams.set("page", String(params.page));
+  if (params.limit) queryParams.set("limit", String(params.limit));
+
+  const res = await fetch(`${API_BASE_URL}/admin/reviews?${queryParams.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch reviews");
+  return json;
+}
+
+export async function deleteAdminReview(
+  token: string,
+  id: string
+): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/admin/reviews/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to delete review");
+  return json;
+}
+
+

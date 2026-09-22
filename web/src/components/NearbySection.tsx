@@ -43,10 +43,9 @@ export default function NearbySection() {
         setLocationName("Your GPS Location");
         setGpsLoading(false);
       },
-      (err) => {
-        console.warn("GPS access denied or unavailable, using Ella as default demo:", err.message);
-        setError("Location permission denied. You can select a quick Sri Lankan location below:");
-        // Default to Ella for instant gratification
+      () => {
+        // GPS unavailable (permission denied or insecure origin) — fall back to Ella
+        setError("Location access unavailable. Select a quick preset below:");
         setUserCoords({ lat: 6.8667, lng: 81.0466 });
         setLocationName("Ella (Preset Demo)");
         setGpsLoading(false);

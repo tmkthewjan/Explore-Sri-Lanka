@@ -2,6 +2,9 @@ export interface User {
   id: string;
   full_name: string;
   email: string;
+  role?: 'user' | 'admin';
+  is_active?: boolean;
+  last_login_at?: string | null;
   profile_image?: string | null;
   bio?: string | null;
   created_at?: string;

@@ -191,6 +191,15 @@ export default function ProfilePage() {
 
           {/* Actions */}
           <div className="flex sm:flex-col gap-2 shrink-0">
+            {user.role === "admin" && (
+              <Link
+                href="/admin/dashboard"
+                className="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-purple-950/40"
+              >
+                <Sparkles className="w-4 h-4" />
+                Admin Dashboard
+              </Link>
+            )}
             <Link
               href="/favorites"
               className="flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white text-xs font-semibold px-4 py-2.5 rounded-xl backdrop-blur-sm border border-white/20 transition-all shadow-sm"

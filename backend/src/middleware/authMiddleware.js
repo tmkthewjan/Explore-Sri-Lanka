@@ -67,6 +67,7 @@ const protect = async (req, res, next) => {
       id: decoded.id,
       email: decoded.email,
       full_name: decoded.full_name,
+      role: decoded.role || 'user',
     };
 
     next();

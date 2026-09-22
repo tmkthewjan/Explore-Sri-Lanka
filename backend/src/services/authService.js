@@ -16,7 +16,7 @@ try {
   // Native fallback active
 }
 
-// In-memory fallback cache for when PostgreSQL is offline
+// In-memory fallback cache with default seeded accounts
 const fallbackUsers = [];
 
 /**
@@ -31,6 +31,86 @@ async function hashPassword(password) {
   const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
   return `${salt}:${hash}`;
 }
+
+// Seed default accounts
+(async () => {
+  try {
+    const demoPassHash = await hashPassword('Password123!');
+    const adminPassHash = await hashPassword('Admin123!');
+
+    fallbackUsers.push(
+      {
+        id: 'mock-user-demo-001',
+        full_name: 'Demo Traveler',
+        email: 'demo@exploresrilanka.com',
+        role: 'user',
+        is_active: true,
+        last_login_at: new Date().toISOString(),
+        password_hash: demoPassHash,
+        profile_image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'mock-user-admin-001',
+        full_name: 'System Admin',
+        email: 'admin@exploresrilanka.com',
+        role: 'admin',
+        is_active: true,
+        last_login_at: new Date().toISOString(),
+        password_hash: adminPassHash,
+        profile_image: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
+        created_at: new Date().toISOString(),
+      }
+    );
+
+    // If PostgreSQL is available, ensure schema columns and seeded users exist in DB
+    setTimeout(async () => {
+      try {
+        // Ensure columns exist
+        await query(`
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP WITH TIME ZONE;
+          
+          CREATE TABLE IF NOT EXISTS search_history (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+            search_query VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+
+          CREATE TABLE IF NOT EXISTS location_queries (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            latitude DOUBLE PRECISION NOT NULL,
+            longitude DOUBLE PRECISION NOT NULL,
+            radius_km DOUBLE PRECISION NOT NULL,
+            category VARCHAR(100),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+        `);
+
+        // Upsert default users with roles
+        await query(
+          `INSERT INTO users (full_name, email, password_hash, profile_image, role, is_active, last_login_at)
+           VALUES 
+            ($1, $2, $3, $4, $5, TRUE, NOW()),
+            ($6, $7, $8, $9, $10, TRUE, NOW())
+           ON CONFLICT (email) DO UPDATE 
+           SET role = EXCLUDED.role,
+               password_hash = EXCLUDED.password_hash;`,
+          [
+            'Demo Traveler', 'demo@exploresrilanka.com', demoPassHash, 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80', 'user',
+            'System Admin', 'admin@exploresrilanka.com', adminPassHash, 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80', 'admin'
+          ]
+        );
+      } catch (e) {
+        // Ignored if DB table not yet created or DB offline
+      }
+    }, 1000);
+  } catch (err) {
+    console.warn('Error seeding default auth users:', err);
+  }
+})();
 
 /**
  * Universal password verifier
@@ -66,6 +146,7 @@ class AuthService {
           id: user.id,
           email: user.email,
           full_name: user.full_name,
+          role: user.role || 'user',
         },
         secret,
         { expiresIn }
@@ -80,6 +161,7 @@ class AuthService {
         id: user.id,
         email: user.email,
         full_name: user.full_name,
+        role: user.role || 'user',
         exp: expTime,
       })
     ).toString('base64url');
@@ -114,9 +196,9 @@ class AuthService {
       }
 
       const insertSql = `
-        INSERT INTO users (full_name, email, password_hash)
-        VALUES ($1, $2, $3)
-        RETURNING id, full_name, email, profile_image, created_at;
+        INSERT INTO users (full_name, email, password_hash, role, is_active, last_login_at)
+        VALUES ($1, $2, $3, 'user', TRUE, NOW())
+        RETURNING id, full_name, email, role, is_active, profile_image, created_at;
       `;
 
       const result = await query(insertSql, [cleanName, normalizedEmail, passwordHash]);
@@ -140,6 +222,9 @@ class AuthService {
         id: `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         full_name: cleanName,
         email: normalizedEmail,
+        role: 'user',
+        is_active: true,
+        last_login_at: new Date().toISOString(),
         password_hash: passwordHash,
         profile_image: null,
         created_at: new Date().toISOString(),
@@ -159,7 +244,7 @@ class AuthService {
 
     try {
       const result = await query(
-        `SELECT id, full_name, email, password_hash, profile_image 
+        `SELECT id, full_name, email, password_hash, role, is_active, profile_image, last_login_at
          FROM users 
          WHERE email = $1 
          LIMIT 1`,
@@ -178,12 +263,26 @@ class AuthService {
         throw error;
       }
 
+      // Check active status
+      if (user.is_active === false) {
+        const error = new Error('This account has been deactivated. Please contact support.');
+        error.status = 403;
+        throw error;
+      }
+
       // Verify password
       const isMatch = await verifyPassword(password, user.password_hash);
       if (!isMatch) {
         const error = new Error('Invalid email or password.');
         error.status = 401;
         throw error;
+      }
+
+      // Update last_login_at in database
+      try {
+        await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+      } catch (e) {
+        user.last_login_at = new Date().toISOString();
       }
 
       // Generate JWT
@@ -195,18 +294,28 @@ class AuthService {
           id: user.id,
           full_name: user.full_name,
           email: user.email,
+          role: user.role || 'user',
+          is_active: user.is_active !== false,
+          last_login_at: user.last_login_at,
           profile_image: user.profile_image || null,
         },
       };
     } catch (error) {
-      if (error.status === 401) {
+      if (error.status === 401 || error.status === 403) {
         throw error;
       }
 
       const cachedUser = fallbackUsers.find((u) => u.email === normalizedEmail);
       if (cachedUser) {
+        if (cachedUser.is_active === false) {
+          const deactErr = new Error('This account has been deactivated. Please contact support.');
+          deactErr.status = 403;
+          throw deactErr;
+        }
+
         const isMatch = await verifyPassword(password, cachedUser.password_hash);
         if (isMatch) {
+          cachedUser.last_login_at = new Date().toISOString();
           const token = this.generateToken(cachedUser);
           return {
             token,
@@ -214,6 +323,9 @@ class AuthService {
               id: cachedUser.id,
               full_name: cachedUser.full_name,
               email: cachedUser.email,
+              role: cachedUser.role || 'user',
+              is_active: cachedUser.is_active !== false,
+              last_login_at: cachedUser.last_login_at,
               profile_image: cachedUser.profile_image || null,
             },
           };
@@ -225,6 +337,7 @@ class AuthService {
       throw authError;
     }
   }
+
 
   /**
    * Generate password reset token

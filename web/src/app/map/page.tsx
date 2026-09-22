@@ -73,8 +73,8 @@ function MapContent() {
         setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setGpsLoading(false);
       },
-      (err) => {
-        console.warn("GPS error, defaulting to Ella:", err.message);
+      () => {
+        // GPS unavailable (permission denied or insecure origin) — fall back to Ella
         setUserCoords({ lat: 6.8667, lng: 81.0466 });
         setGpsLoading(false);
       },

@@ -91,6 +91,15 @@ class PlaceController {
         limit,
       });
 
+      // Asynchronously log anonymized nearby query
+      try {
+        const { query } = require('../config/database');
+        query(
+          'INSERT INTO location_queries (latitude, longitude, radius_km, category) VALUES ($1, $2, $3, $4)',
+          [parsedLat, parsedLng, parsedRadius, category || null]
+        ).catch(() => {});
+      } catch (e) {}
+
       res.status(200).json({
         success: true,
         count: places.length,
@@ -122,6 +131,13 @@ class PlaceController {
       }
 
       const places = await PlaceService.searchPlaces(q, limit);
+
+      // Asynchronously log search keyword
+      try {
+        const { query } = require('../config/database');
+        const userId = req.user ? req.user.id : null;
+        query('INSERT INTO search_history (user_id, search_query) VALUES ($1, $2)', [userId, q.trim()]).catch(() => {});
+      } catch (e) {}
 
       res.status(200).json({
         success: true,
