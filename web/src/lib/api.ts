@@ -1,6 +1,7 @@
 import { Place, MetadataResponse, PlaceFilters } from "@/types/place";
 import { User, AuthResponse, FavoriteItem } from "@/types/auth";
 import { Review, ReviewSummary } from "@/types/review";
+import { PlannedTrip, CreateTripInput, UpdateTripInput } from "@/types/trip";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -223,11 +224,19 @@ export async function getProfileApi(token: string): Promise<User> {
 }
 
 /**
- * Update user profile (name, bio, avatar)
+ * Update user profile (name, bio, avatar, phone, language, region, travel preferences)
  */
 export async function updateProfileApi(
   token: string,
-  data: { full_name?: string; bio?: string; profile_image?: string | null }
+  data: {
+    full_name?: string;
+    bio?: string;
+    profile_image?: string | null;
+    phone_number?: string | null;
+    preferred_language?: string | null;
+    preferred_region?: string | null;
+    travel_preferences?: string[] | null;
+  }
 ): Promise<User> {
   const res = await fetch(`${API_BASE_URL}/users/profile`, {
     method: "PUT",
@@ -259,6 +268,93 @@ export async function changePasswordApi(
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.message || "Failed to update password");
+  return json;
+}
+
+/* =========================================================================
+   TRIP PLANNING & REMINDER APIs
+   ========================================================================= */
+
+/**
+ * Fetch all planned trips for authenticated user
+ */
+export async function getUserTrips(token: string): Promise<PlannedTrip[]> {
+  const res = await fetch(`${API_BASE_URL}/trips`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch planned trips");
+  return json.data || [];
+}
+
+/**
+ * Fetch a single trip by ID
+ */
+export async function getTripById(token: string, id: string): Promise<PlannedTrip> {
+  const res = await fetch(`${API_BASE_URL}/trips/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to fetch trip details");
+  return json.data;
+}
+
+/**
+ * Create a new planned trip
+ */
+export async function createTrip(
+  token: string,
+  data: CreateTripInput
+): Promise<PlannedTrip> {
+  const res = await fetch(`${API_BASE_URL}/trips`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to plan trip");
+  return json.data;
+}
+
+/**
+ * Update an existing trip
+ */
+export async function updateTrip(
+  token: string,
+  id: string,
+  data: UpdateTripInput
+): Promise<PlannedTrip> {
+  const res = await fetch(`${API_BASE_URL}/trips/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to update trip");
+  return json.data;
+}
+
+/**
+ * Delete a planned trip
+ */
+export async function deleteTrip(
+  token: string,
+  id: string
+): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/trips/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to delete trip");
   return json;
 }
 

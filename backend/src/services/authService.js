@@ -71,6 +71,10 @@ async function hashPassword(password) {
           ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';
           ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
           ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP WITH TIME ZONE;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(30);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_language VARCHAR(30) DEFAULT 'English';
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_region VARCHAR(100);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS travel_preferences JSONB DEFAULT '[]'::jsonb;
           
           CREATE TABLE IF NOT EXISTS search_history (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -87,6 +91,23 @@ async function hashPassword(password) {
             category VARCHAR(100),
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
           );
+
+          CREATE TABLE IF NOT EXISTS planned_trips (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            place_id UUID NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+            travel_date TIMESTAMP WITH TIME ZONE NOT NULL,
+            notes TEXT,
+            reminder_enabled BOOLEAN DEFAULT TRUE,
+            reminder_sent BOOLEAN DEFAULT FALSE,
+            reminder_sent_at TIMESTAMP WITH TIME ZONE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_planned_trips_user_id ON planned_trips(user_id);
+          CREATE INDEX IF NOT EXISTS idx_planned_trips_travel_date ON planned_trips(travel_date);
+          CREATE INDEX IF NOT EXISTS idx_planned_trips_reminder ON planned_trips(reminder_enabled, reminder_sent, travel_date);
         `);
 
         // Upsert default users with roles

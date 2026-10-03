@@ -11,7 +11,15 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (fullName: string, email: string, password: string) => Promise<void>;
   logout: () => void;
-  updateUserProfile: (data: { full_name?: string; bio?: string; profile_image?: string | null }) => Promise<void>;
+  updateUserProfile: (data: {
+    full_name?: string;
+    bio?: string;
+    profile_image?: string | null;
+    phone_number?: string | null;
+    preferred_language?: string | null;
+    preferred_region?: string | null;
+    travel_preferences?: string[] | null;
+  }) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -87,6 +95,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     full_name?: string;
     bio?: string;
     profile_image?: string | null;
+    phone_number?: string | null;
+    preferred_language?: string | null;
+    preferred_region?: string | null;
+    travel_preferences?: string[] | null;
   }) => {
     if (!token) throw new Error("Not authenticated");
     const updated = await updateProfileApi(token, data);

@@ -16,6 +16,7 @@ import {
 import { getPlaceBySlug, getNearbyPlaces, getGoogleMapsNavigationUrl } from "@/lib/api";
 import PlaceCard from "@/components/PlaceCard";
 import FavoriteButton from "@/components/FavoriteButton";
+import PlanTripButton from "@/components/PlanTripButton";
 import ReviewSection from "@/components/ReviewSection";
 import MapboxMapClient from "@/components/MapboxMapClient";
 
@@ -198,16 +199,35 @@ export default async function PlaceDetailsPage({ params }: PlaceDetailsProps) {
                 </div>
               </div>
 
+              {/* Plan a Trip Button */}
+              <PlanTripButton
+                placeId={place.id}
+                placeTitle={place.title}
+                placeCoverImage={place.cover_image}
+                placeDistrict={place.district}
+                className="w-full text-base py-3.5"
+              />
+
               {/* Big Google Maps Navigation Button */}
               <a
                 href={googleMapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-base shadow-xl shadow-emerald-600/25 transition-all hover:shadow-2xl hover:-translate-y-0.5 active:translate-y-0"
+                className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-md transition-all hover:-translate-y-0.5"
               >
-                <Navigation className="w-5 h-5" />
+                <Navigation className="w-4 h-4 text-emerald-400" />
                 Navigate with Google Maps
               </a>
+
+              {/* Save to Wishlist row */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs text-slate-500 font-semibold">Save to Wishlist:</span>
+                <FavoriteButton
+                  placeId={place.id}
+                  placeTitle={place.title}
+                  variant="detail"
+                />
+              </div>
 
               <p className="text-xs text-center text-slate-400 leading-relaxed">
                 Launches Google Maps with driving directions calculated directly to this destination’s GPS coordinates.

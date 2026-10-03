@@ -19,11 +19,18 @@ class UserController {
 
   /**
    * PUT /api/users/profile
-   * Updates full_name and/or profile_image
+   * Updates full_name, profile_image, phone_number, preferred_language, preferred_region, travel_preferences
    */
   static async updateProfile(req, res, next) {
     try {
-      const { full_name, profile_image } = req.body;
+      const {
+        full_name,
+        profile_image,
+        phone_number,
+        preferred_language,
+        preferred_region,
+        travel_preferences,
+      } = req.body;
 
       if (full_name !== undefined && !full_name.trim()) {
         return res.status(400).json({
@@ -32,9 +39,20 @@ class UserController {
         });
       }
 
+      if (phone_number !== undefined && phone_number !== null && phone_number.length > 30) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number cannot exceed 30 characters.',
+        });
+      }
+
       const updatedUser = await UserService.updateProfile(req.user.id, {
         full_name,
         profile_image,
+        phone_number,
+        preferred_language,
+        preferred_region,
+        travel_preferences,
       });
 
       return res.status(200).json({

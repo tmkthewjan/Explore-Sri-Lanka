@@ -7,6 +7,10 @@ export interface User {
   last_login_at?: string | null;
   profile_image?: string | null;
   bio?: string | null;
+  phone_number?: string | null;
+  preferred_language?: string | null;
+  preferred_region?: string | null;
+  travel_preferences?: string[] | null;
   created_at?: string;
   updated_at?: string;
 }

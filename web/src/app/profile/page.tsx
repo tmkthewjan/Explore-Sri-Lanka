@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { changePasswordApi } from "@/lib/api";
+import { changePasswordApi, getUserTrips } from "@/lib/api";
 import {
   User,
   Mail,
@@ -18,7 +18,49 @@ import {
   Sparkles,
   ShieldCheck,
   Compass,
+  Phone,
+  Globe2,
+  MapPin,
+  Luggage,
+  Tag,
+  ArrowRight,
 } from "lucide-react";
+
+const TRAVEL_PREFERENCE_OPTIONS = [
+  "Beaches & Coastal",
+  "Wildlife Safari",
+  "Hiking & Mountains",
+  "Cultural & UNESCO Heritage",
+  "Tea Plantations & Hill Country",
+  "Surfing & Water Sports",
+  "Local Cuisine & Street Food",
+  "Wellness & Ayurveda",
+  "Camping & Adventure",
+  "Scenic Rail Journeys",
+];
+
+const LANGUAGE_OPTIONS = [
+  "English",
+  "Sinhala (සිංහල)",
+  "Tamil (தமிழ்)",
+  "French (Français)",
+  "German (Deutsch)",
+  "Japanese (日本語)",
+  "Chinese (中文)",
+  "Russian (Русский)",
+];
+
+const REGION_OPTIONS = [
+  "All Regions (Pan-Island)",
+  "Southern Coast (Galle, Mirissa, Tangalle)",
+  "Central Highlands (Kandy, Nuwara Eliya, Ella)",
+  "Cultural Triangle (Sigiriya, Anuradhapura, Polonnaruwa)",
+  "Eastern Coast (Arugam Bay, Trincomalee, Pasikudah)",
+  "Western Province (Colombo, Negombo, Kalutara)",
+  "Northern Province (Jaffna, Mannar)",
+  "Sabaragamuwa (Ratnapura, Sinharaja)",
+  "Uva Province (Badulla, Bandarawela)",
+];
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -28,8 +70,16 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState("");
   const [bio, setBio] = useState("");
   const [profileImage, setProfileImage] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [preferredLanguage, setPreferredLanguage] = useState("English");
+  const [preferredRegion, setPreferredRegion] = useState("All Regions (Pan-Island)");
+  const [travelPreferences, setTravelPreferences] = useState<string[]>([]);
+
   const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+
+  // Planned Trips counter state
+  const [plannedTripsCount, setPlannedTripsCount] = useState<number | null>(null);
 
   // Password Change State
   const [currentPassword, setCurrentPassword] = useState("");
@@ -43,8 +93,21 @@ export default function ProfilePage() {
       setFullName(user.full_name || "");
       setBio(user.bio || "");
       setProfileImage(user.profile_image || "");
+      setPhoneNumber(user.phone_number || "");
+      setPreferredLanguage(user.preferred_language || "English");
+      setPreferredRegion(user.preferred_region || "All Regions (Pan-Island)");
+      setTravelPreferences(user.travel_preferences || []);
     }
   }, [user]);
+
+  // Fetch count of trips
+  useEffect(() => {
+    if (token) {
+      getUserTrips(token)
+        .then((trips) => setPlannedTripsCount(trips.length))
+        .catch(() => setPlannedTripsCount(null));
+    }
+  }, [token]);
 
   if (isLoading) {
     return (
@@ -87,6 +150,12 @@ export default function ProfilePage() {
     );
   }
 
+  const toggleTravelPreference = (pref: string) => {
+    setTravelPreferences((prev) =>
+      prev.includes(pref) ? prev.filter((p) => p !== pref) : [...prev, pref]
+    );
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileMsg(null);
@@ -97,8 +166,12 @@ export default function ProfilePage() {
         full_name: fullName,
         bio: bio,
         profile_image: profileImage || null,
+        phone_number: phoneNumber || null,
+        preferred_language: preferredLanguage,
+        preferred_region: preferredRegion,
+        travel_preferences: travelPreferences,
       });
-      setProfileMsg({ type: "success", text: "Profile details updated successfully!" });
+      setProfileMsg({ type: "success", text: "Profile & travel preferences saved successfully!" });
     } catch (err: any) {
       setProfileMsg({ type: "error", text: err.message || "Failed to update profile." });
     } finally {
@@ -115,8 +188,8 @@ export default function ProfilePage() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setPwdMsg({ type: "error", text: "New password must be at least 6 characters long." });
+    if (newPassword.length < 8) {
+      setPwdMsg({ type: "error", text: "New password must be at least 8 characters long." });
       return;
     }
 
@@ -151,10 +224,10 @@ export default function ProfilePage() {
       {/* Profile Header Card */}
       <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-slate-900 rounded-3xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden mb-8">
         <div className="absolute right-0 top-0 w-96 h-96 bg-white/5 rounded-full blur-3xl pointer-events-none" />
-        
+
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 relative z-10">
           {/* Avatar */}
-          <div className="w-24 h-24 sm:w-28 sm:sm-h-28 rounded-2xl bg-gradient-to-tr from-emerald-400 to-teal-300 text-slate-950 font-black text-3xl sm:text-4xl flex items-center justify-center uppercase shadow-2xl shrink-0 overflow-hidden border-4 border-white/20">
+          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-tr from-emerald-400 to-teal-300 text-slate-950 font-black text-3xl sm:text-4xl flex items-center justify-center uppercase shadow-2xl shrink-0 overflow-hidden border-4 border-white/20">
             {user.profile_image ? (
               <img
                 src={user.profile_image}
@@ -201,6 +274,13 @@ export default function ProfilePage() {
               </Link>
             )}
             <Link
+              href="/trips"
+              className="flex items-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 text-xs font-semibold px-4 py-2.5 rounded-xl backdrop-blur-sm border border-emerald-400/30 transition-all shadow-sm"
+            >
+              <Luggage className="w-4 h-4 text-emerald-300" />
+              Planned Trips {plannedTripsCount !== null && `(${plannedTripsCount})`}
+            </Link>
+            <Link
               href="/favorites"
               className="flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white text-xs font-semibold px-4 py-2.5 rounded-xl backdrop-blur-sm border border-white/20 transition-all shadow-sm"
             >
@@ -218,192 +298,311 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Card 1: Edit Profile Details */}
-        <div className="bg-white/90 backdrop-blur-sm p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2.5 mb-6">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <User className="w-5 h-5" />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Personal Info & Travel Preferences */}
+        <div className="lg:col-span-7 space-y-8">
+          <div className="bg-white/90 backdrop-blur-sm p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-2.5 mb-6">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <User className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Personal & Travel Preferences</h2>
+                <p className="text-xs text-slate-500">
+                  Customize your explorer profile and journey interests
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Personal Information</h2>
-              <p className="text-xs text-slate-500">Update your public traveler persona</p>
-            </div>
+
+            {profileMsg && (
+              <div
+                className={`p-4 rounded-2xl mb-6 text-xs flex items-center gap-2.5 border ${
+                  profileMsg.type === "success"
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    : "bg-red-50 border-red-200 text-red-700"
+                }`}
+              >
+                {profileMsg.type === "success" ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                )}
+                <span>{profileMsg.text}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Phone Number (Optional)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder="+94 77 123 4567"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Email Address (Read-only)
+                </label>
+                <input
+                  type="email"
+                  disabled
+                  value={user.email}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 text-sm cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Profile Avatar URL (Optional)
+                </label>
+                <input
+                  type="url"
+                  value={profileImage}
+                  onChange={(e) => setProfileImage(e.target.value)}
+                  placeholder="https://images.unsplash.com/photo-..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
+                    <Globe2 className="w-3.5 h-3.5 text-emerald-600" />
+                    Preferred Language
+                  </label>
+                  <select
+                    value={preferredLanguage}
+                    onChange={(e) => setPreferredLanguage(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all font-medium"
+                  >
+                    {LANGUAGE_OPTIONS.map((lang) => (
+                      <option key={lang} value={lang}>
+                        {lang}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                    Preferred Region
+                  </label>
+                  <select
+                    value={preferredRegion}
+                    onChange={(e) => setPreferredRegion(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all font-medium"
+                  >
+                    {REGION_OPTIONS.map((region) => (
+                      <option key={region} value={region}>
+                        {region}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-emerald-600" />
+                  Travel Interests & Categories
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {TRAVEL_PREFERENCE_OPTIONS.map((pref) => {
+                    const isSelected = travelPreferences.includes(pref);
+                    return (
+                      <button
+                        key={pref}
+                        type="button"
+                        onClick={() => toggleTravelPreference(pref)}
+                        className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all ${
+                          isSelected
+                            ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/30 scale-102"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                        }`}
+                      >
+                        {isSelected ? "✓ " : "+ "}
+                        {pref}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Traveler Bio
+                </label>
+                <textarea
+                  rows={3}
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Share your passion for Sri Lankan wildlife, ancient ruins, and surfing..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-400 resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={profileLoading}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20 transition-all disabled:opacity-60"
+              >
+                {profileLoading ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Changes
+                  </>
+                )}
+              </button>
+            </form>
           </div>
-
-          {profileMsg && (
-            <div
-              className={`p-4 rounded-2xl mb-6 text-xs flex items-center gap-2.5 border ${
-                profileMsg.type === "success"
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                  : "bg-red-50 border-red-200 text-red-700"
-              }`}
-            >
-              {profileMsg.type === "success" ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-              )}
-              <span>{profileMsg.text}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleUpdateProfile} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                Full Name
-              </label>
-              <input
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                Email Address (Read-only)
-              </label>
-              <input
-                type="email"
-                disabled
-                value={user.email}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 text-sm cursor-not-allowed"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                Profile Avatar URL (Optional)
-              </label>
-              <input
-                type="url"
-                value={profileImage}
-                onChange={(e) => setProfileImage(e.target.value)}
-                placeholder="https://images.unsplash.com/photo-..."
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-400"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                Traveler Bio
-              </label>
-              <textarea
-                rows={3}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Share your passion for Sri Lankan wildlife, ancient ruins, and surfing..."
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-400 resize-none"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={profileLoading}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20 transition-all disabled:opacity-60"
-            >
-              {profileLoading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Save Changes
-                </>
-              )}
-            </button>
-          </form>
         </div>
 
-        {/* Card 2: Security & Change Password */}
-        <div className="bg-white/90 backdrop-blur-sm p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2.5 mb-6">
-            <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
-              <Lock className="w-5 h-5" />
+        {/* Right Column: Security & Planned Trips Shortcut */}
+        <div className="lg:col-span-5 space-y-8">
+          {/* Planned Trips Overview Widget */}
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50/50 p-6 rounded-3xl border border-emerald-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+                  <Luggage className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">My Trip Itineraries</h3>
+                  <p className="text-xs text-slate-500">Upcoming journeys & reminders</p>
+                </div>
+              </div>
+              <span className="text-2xl font-black text-emerald-700">
+                {plannedTripsCount !== null ? plannedTripsCount : "0"}
+              </span>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Security & Password</h2>
-              <p className="text-xs text-slate-500">Update your account credentials safely</p>
-            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Plan visits to destinations across Sri Lanka, configure 24-hour departure notifications, and navigate via GPS.
+            </p>
+
+            <Link
+              href="/trips"
+              className="flex items-center justify-between py-2.5 px-4 rounded-xl bg-white border border-emerald-200 text-xs font-bold text-emerald-800 hover:bg-emerald-50 transition-all shadow-sm"
+            >
+              <span>Manage Planned Trips</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
 
-          {pwdMsg && (
-            <div
-              className={`p-4 rounded-2xl mb-6 text-xs flex items-center gap-2.5 border ${
-                pwdMsg.type === "success"
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                  : "bg-red-50 border-red-200 text-red-700"
-              }`}
-            >
-              {pwdMsg.type === "success" ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-              )}
-              <span>{pwdMsg.text}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                Current Password
-              </label>
-              <input
-                type="password"
-                required
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all placeholder:text-slate-400"
-              />
+          {/* Security & Password Card */}
+          <div className="bg-white/90 backdrop-blur-sm p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-2.5 mb-6">
+              <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Security & Password</h2>
+                <p className="text-xs text-slate-500">Update your account credentials safely</p>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                New Password
-              </label>
-              <input
-                type="password"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all placeholder:text-slate-400"
-              />
-            </div>
+            {pwdMsg && (
+              <div
+                className={`p-4 rounded-2xl mb-6 text-xs flex items-center gap-2.5 border ${
+                  pwdMsg.type === "success"
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    : "bg-red-50 border-red-200 text-red-700"
+                }`}
+              >
+                {pwdMsg.type === "success" ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                )}
+                <span>{pwdMsg.text}</span>
+              </div>
+            )}
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                Confirm New Password
-              </label>
-              <input
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repeat new password"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all placeholder:text-slate-400"
-              />
-            </div>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all placeholder:text-slate-400"
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={pwdLoading}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-md transition-all disabled:opacity-60"
-            >
-              {pwdLoading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Lock className="w-4 h-4" />
-                  Update Password
-                </>
-              )}
-            </button>
-          </form>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all placeholder:text-slate-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat new password"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all placeholder:text-slate-400"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={pwdLoading}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-md transition-all disabled:opacity-60"
+              >
+                {pwdLoading ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    Update Password
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>

@@ -8,7 +8,7 @@ class UserService {
   static async getProfile(userId) {
     try {
       const result = await query(
-        `SELECT id, full_name, email, profile_image, created_at, updated_at 
+        `SELECT id, full_name, email, role, profile_image, phone_number, preferred_language, preferred_region, travel_preferences, created_at, updated_at 
          FROM users 
          WHERE id = $1 
          LIMIT 1`,
@@ -34,9 +34,16 @@ class UserService {
   }
 
   /**
-   * Update full_name and profile_image
+   * Update full_name, profile_image, phone_number, preferred_language, preferred_region, travel_preferences
    */
-  static async updateProfile(userId, { full_name, profile_image }) {
+  static async updateProfile(userId, {
+    full_name,
+    profile_image,
+    phone_number,
+    preferred_language,
+    preferred_region,
+    travel_preferences,
+  }) {
     const fields = [];
     const values = [];
     let paramIdx = 1;
@@ -51,6 +58,26 @@ class UserService {
       values.push(profile_image ? profile_image.trim() : null);
     }
 
+    if (phone_number !== undefined) {
+      fields.push(`phone_number = $${paramIdx++}`);
+      values.push(phone_number ? phone_number.trim() : null);
+    }
+
+    if (preferred_language !== undefined) {
+      fields.push(`preferred_language = $${paramIdx++}`);
+      values.push(preferred_language ? preferred_language.trim() : 'English');
+    }
+
+    if (preferred_region !== undefined) {
+      fields.push(`preferred_region = $${paramIdx++}`);
+      values.push(preferred_region ? preferred_region.trim() : null);
+    }
+
+    if (travel_preferences !== undefined) {
+      fields.push(`travel_preferences = $${paramIdx++}::jsonb`);
+      values.push(JSON.stringify(Array.isArray(travel_preferences) ? travel_preferences : []));
+    }
+
     fields.push(`updated_at = NOW()`);
     values.push(userId);
 
@@ -58,7 +85,7 @@ class UserService {
       UPDATE users 
       SET ${fields.join(', ')} 
       WHERE id = $${paramIdx} 
-      RETURNING id, full_name, email, profile_image, updated_at;
+      RETURNING id, full_name, email, role, profile_image, phone_number, preferred_language, preferred_region, travel_preferences, updated_at;
     `;
 
     try {
@@ -79,6 +106,10 @@ class UserService {
 
     if (full_name !== undefined) cachedUser.full_name = full_name.trim();
     if (profile_image !== undefined) cachedUser.profile_image = profile_image ? profile_image.trim() : null;
+    if (phone_number !== undefined) cachedUser.phone_number = phone_number ? phone_number.trim() : null;
+    if (preferred_language !== undefined) cachedUser.preferred_language = preferred_language ? preferred_language.trim() : 'English';
+    if (preferred_region !== undefined) cachedUser.preferred_region = preferred_region ? preferred_region.trim() : null;
+    if (travel_preferences !== undefined) cachedUser.travel_preferences = Array.isArray(travel_preferences) ? travel_preferences : [];
     cachedUser.updated_at = new Date().toISOString();
 
     const { password_hash, ...profile } = cachedUser;

@@ -23,6 +23,10 @@ const startServer = async () => {
     console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`====================================================`);
+
+    // Initialize Trip Reminder Cron Engine
+    const ReminderService = require('./services/reminderService');
+    ReminderService.initReminderScheduler();
   });
 };
 

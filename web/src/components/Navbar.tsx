@@ -14,6 +14,7 @@ import {
   LogOut,
   ChevronDown,
   Sparkles,
+  Calendar,
 } from "lucide-react";
 
 export default function Navbar() {
@@ -83,6 +84,15 @@ export default function Navbar() {
 
           {user ? (
             <div className="flex items-center gap-3">
+              {/* Trips shortcut */}
+              <Link
+                href="/trips"
+                title="My Planned Trips"
+                className="relative p-2 rounded-xl border border-slate-200 bg-white/80 hover:bg-emerald-50 hover:border-emerald-200 text-slate-700 hover:text-emerald-600 transition-all shadow-sm"
+              >
+                <Calendar className="w-4 h-4 text-emerald-600" />
+              </Link>
+
               {/* Favorites shortcut */}
               <Link
                 href="/favorites"
@@ -125,6 +135,14 @@ export default function Navbar() {
                           Admin Dashboard
                         </Link>
                       )}
+                      <Link
+                        href="/trips"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                      >
+                        <Calendar className="w-4 h-4 text-emerald-600" />
+                        My Planned Trips
+                      </Link>
                       <Link
                         href="/profile"
                         onClick={() => setUserDropdownOpen(false)}
@@ -237,6 +255,14 @@ export default function Navbar() {
                     Admin Dashboard
                   </Link>
                 )}
+                <Link
+                  href="/trips"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
+                >
+                  <Calendar className="w-4 h-4 text-emerald-600" />
+                  My Planned Trips
+                </Link>
                 <Link
                   href="/favorites"
                   onClick={() => setMobileMenuOpen(false)}
